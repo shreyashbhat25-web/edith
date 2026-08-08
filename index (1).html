@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>EDITH</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0E1A2B">
+<meta name="color-scheme" content="dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0E1A2B;
+    --bg-raised:#132437;
+    --amber:#E8A33D;
+    --teal:#5C8A89;
+    --cream:#F1EAD9;
+    --dim:#7C8CA0;
+    --line:#22384F;
+    --danger:#C4664B;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html{ height:100%; color-scheme:dark; }
+  body{
+    margin:0;
+    min-height:100vh;
+    min-height:100dvh;
+    background:var(--bg);
+    color:var(--cream);
+    font-family:'IBM Plex Sans', sans-serif;
+    display:flex;
+    flex-direction:column;
+  }
+
+  /* Header with signature dial */
+  header{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:16px 18px calc(14px + env(safe-area-inset-top,0px));
+    padding-top:calc(16px + env(safe-area-inset-top,0px));
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, var(--bg-raised), var(--bg));
+  }
+  .dial{
+    width:34px; height:34px; border-radius:50%;
+    border:2px solid var(--line);
+    position:relative;
+    flex-shrink:0;
+    transition:border-color .3s;
+  }
+  .dial::after{
+    content:'';
+    position:absolute; top:3px; left:50%;
+    width:2px; height:9px;
+    background:var(--amber);
+    transform-origin:50% 14px;
+    transform:translateX(-50%) rotate(0deg);
+    border-radius:2px;
+  }
+  .dial.thinking::after{ animation: sweep 1.1s linear infinite; }
+  .dial.thinking{ border-color:var(--amber); }
+  @keyframes sweep{ to{ transform:translateX(-50%) rotate(360deg); } }
+  .brand{ display:flex; flex-direction:column; line-height:1.15; }
+  .brand b{ font-family:'IBM Plex Mono', monospace; font-size:16px; letter-spacing:2px; }
+  .brand span{ font-size:11px; color:var(--dim); font-family:'IBM Plex Mono', monospace; }
+  .settings-btn{
+    margin-left:auto; background:none; border:1px solid var(--line);
+    color:var(--dim); width:36px; height:36px; border-radius:8px;
+    font-family:'IBM Plex Mono', monospace; font-size:16px;
+  }
+
+  /* Transmission log */
+  #log{
+    flex:1; overflow-y:auto; padding:16px 16px 8px;
+    display:flex; flex-direction:column; gap:14px;
+  }
+  .entry{ max-width:88%; }
+  .entry.user{ align-self:flex-end; }
+  .entry .meta{
+    font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--dim);
+    margin-bottom:4px; letter-spacing:1px; text-transform:uppercase;
+  }
+  .entry.user .meta{ text-align:right; }
+  .bubble{
+    padding:10px 13px; border-radius:4px; font-size:14.5px; line-height:1.5;
+    white-space:pre-wrap; word-wrap:break-word;
+  }
+  .entry.assistant .bubble{
+    background:var(--bg-raised); border-left:2px solid var(--amber);
+  }
+  .entry.user .bubble{
+    background:transparent; border:1px solid var(--line); border-right:2px solid var(--teal);
+  }
+  .entry.system .bubble{
+    background:transparent; border:1px dashed var(--line); color:var(--dim);
+    font-family:'IBM Plex Mono', monospace; font-size:12px;
+  }
+
+  /* Input bar */
+  #inputbar{
+    display:flex; gap:10px; padding:12px 14px calc(12px + env(safe-area-inset-bottom,0px));
+    border-top:1px solid var(--line); background:var(--bg-raised);
+  }
+  #text{
+    flex:1; resize:none; background:var(--bg); color:var(--cream);
+    border:1px solid var(--line); border-radius:8px; padding:11px 12px;
+    font-family:'IBM Plex Sans', sans-serif; font-size:15px; max-height:120px;
+  }
+  #text:focus{ outline:none; border-color:var(--amber); }
+  #send{
+    background:var(--amber); border:none; color:var(--bg);
+    width:46px; border-radius:8px; font-size:18px; font-weight:600;
+  }
+  #send:disabled{ opacity:.4; }
+
+  /* Settings overlay */
+  #settings{
+    position:fixed; inset:0; background:rgba(14,26,43,.96);
+    display:none; flex-direction:column; padding:20px;
+    padding-top:calc(20px + env(safe-area-inset-top,0px));
+    z-index:10;
+  }
+  #settings.open{ display:flex; }
+  #settings h2{ font-family:'IBM Plex Mono', monospace; letter-spacing:1px; font-size:15px; color:var(--amber); margin:0 0 4px;}
+  #settings label{ font-size:12px; color:var(--dim); margin-top:18px; display:block; font-family:'IBM Plex Mono', monospace;}
+  #settings input{
+    width:100%; margin-top:6px; background:var(--bg-raised); border:1px solid var(--line);
+    color:var(--cream); padding:11px; border-radius:8px; font-size:14px; font-family:'IBM Plex Mono', monospace;
+  }
+  #settings .help{ font-size:12px; color:var(--dim); margin-top:8px; line-height:1.5; }
+  #settings .row{ display:flex; gap:10px; margin-top:26px; }
+  #settings button{ flex:1; padding:12px; border-radius:8px; border:none; font-size:14px; font-weight:600; }
+  #closeSettings{ background:var(--amber); color:var(--bg); }
+  #clearChat{ background:transparent; border:1px solid var(--danger); color:var(--danger); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="dial" id="dial"></div>
+  <div class="brand"><b>EDITH</b><span>relay: <span id="relayStatus">not set</span></span></div>
+  <button class="settings-btn" id="openSettings">⚙</button>
+</header>
+
+<div id="log"></div>
+
+<div id="inputbar">
+  <textarea id="text" rows="1" placeholder="Ask EDITH..."></textarea>
+  <button id="send">➤</button>
+</div>
+
+<div id="settings">
+  <h2>SETUP</h2>
+  <div class="help">EDITH needs a relay URL — this is your free Cloudflare Worker that holds your API key and talks to the free LLM. See worker.js / README for how to deploy one (takes ~3 minutes, no cost).</div>
+  <label>RELAY URL</label>
+  <input id="relayInput" placeholder="https://edith.yourname.workers.dev">
+  <div class="row">
+    <button id="closeSettings">SAVE & CLOSE</button>
+  </div>
+  <div class="row">
+    <button id="clearChat">CLEAR CONVERSATION</button>
+  </div>
+</div>
+
+<script>
+const log = document.getElementById('log');
+const text = document.getElementById('text');
+const send = document.getElementById('send');
+const dial = document.getElementById('dial');
+const relayStatus = document.getElementById('relayStatus');
+const settings = document.getElementById('settings');
+const relayInput = document.getElementById('relayInput');
+
+let relayUrl = localStorage.getItem('edith_relay') || '';
+let history = JSON.parse(localStorage.getItem('edith_history') || '[]');
+
+function updateRelayStatus(){
+  relayStatus.textContent = relayUrl ? 'connected' : 'not set';
+  relayStatus.style.color = relayUrl ? 'var(--teal)' : 'var(--danger)';
+}
+
+function addEntry(role, content){
+  const div = document.createElement('div');
+  div.className = 'entry ' + role;
+  const label = role === 'user' ? 'YOU' : role === 'assistant' ? 'EDITH' : 'SYSTEM';
+  div.innerHTML = `<div class="meta">${label}</div><div class="bubble"></div>`;
+  div.querySelector('.bubble').textContent = content;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function renderAll(){
+  log.innerHTML = '';
+  if(history.length === 0){
+    addEntry('system', relayUrl ? 'Ready. Ask me anything — I can search the live web.' : 'Tap the gear icon and set your relay URL to get started.');
+  }
+  history.forEach(m => addEntry(m.role, m.content));
+}
+renderAll();
+updateRelayStatus();
+
+document.getElementById('openSettings').onclick = () => {
+  relayInput.value = relayUrl;
+  settings.classList.add('open');
+};
+document.getElementById('closeSettings').onclick = () => {
+  relayUrl = relayInput.value.trim().replace(/\/$/, '');
+  localStorage.setItem('edith_relay', relayUrl);
+  updateRelayStatus();
+  settings.classList.remove('open');
+  renderAll();
+};
+document.getElementById('clearChat').onclick = () => {
+  history = [];
+  localStorage.setItem('edith_history', '[]');
+  settings.classList.remove('open');
+  renderAll();
+};
+
+text.addEventListener('input', () => {
+  text.style.height = 'auto';
+  text.style.height = Math.min(text.scrollHeight, 120) + 'px';
+});
+text.addEventListener('keydown', (e) => {
+  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); doSend(); }
+});
+send.onclick = doSend;
+
+async function doSend(){
+  const value = text.value.trim();
+  if(!value) return;
+  if(!relayUrl){
+    settings.classList.add('open');
+    return;
+  }
+  text.value = '';
+  text.style.height = 'auto';
+  history.push({role:'user', content:value});
+  localStorage.setItem('edith_history', JSON.stringify(history));
+  renderAll();
+
+  send.disabled = true;
+  dial.classList.add('thinking');
+  try{
+    const res = await fetch(relayUrl, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({messages: history})
+    });
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+    history.push({role:'assistant', content: data.reply});
+    localStorage.setItem('edith_history', JSON.stringify(history));
+    renderAll();
+  }catch(err){
+    addEntry('system', 'Error reaching relay: ' + err.message);
+  }finally{
+    send.disabled = false;
+    dial.classList.remove('thinking');
+  }
+}
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
